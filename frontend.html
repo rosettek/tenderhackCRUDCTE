@@ -435,6 +435,75 @@
             color: var(--dark-color);
         }
         
+        .feature-value.insignificant-clickable {
+            cursor: pointer;
+            color: var(--primary-color);
+            text-decoration: underline;
+            padding: 2px 5px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .feature-value.insignificant-clickable:hover {
+            background-color: #fff5e6;
+        }
+        
+        /* Попап с выпадающим меню для значений */
+        .feature-values-popup {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 200px;
+            max-width: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .feature-values-popup-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            color: var(--dark-color);
+        }
+        
+        .feature-values-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .feature-values-list li {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .feature-values-list li:hover {
+            background-color: #f0f8ff;
+        }
+        
+        .feature-values-list li.selected {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .feature-values-list li.empty {
+            color: #999;
+            font-style: italic;
+            cursor: default;
+        }
+        
+        .feature-values-list li.empty:hover {
+            background-color: transparent;
+        }
+        
         .feature-value-input {
             flex: 1;
             padding: 5px;
@@ -1255,25 +1324,41 @@
                 return;
             }
             
-            container.innerHTML = features.map(feature => `
+            // Функция для экранирования HTML атрибутов
+            const escapeAttr = (str) => {
+                if (!str) return '';
+                return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            };
+            
+            container.innerHTML = features.map(feature => {
+                const featureNameEscaped = escapeAttr(feature.feature_name);
+                const featureValueEscaped = escapeAttr(feature.feature_value);
+                const isInsignificant = !feature.is_significant;
+                
+                return `
                 <div class="feature-item ${feature.is_significant ? 'significant' : 'insignificant'}" 
                      title="${feature.is_significant ? '✓ Группировка по этой характеристике включена' : '✗ Группировка отключена - каждое значение = отдельная карточка'}">
                     <input type="checkbox" class="feature-checkbox" 
                         data-card-id="${cardId}" 
-                        data-feature-name="${feature.feature_name}"
+                        data-feature-name="${featureNameEscaped}"
                         ${feature.is_significant ? 'checked' : ''}
-                        onchange="toggleFeatureSignificance(${cardId}, '${feature.feature_name}', this.checked)"
+                        onchange="toggleFeatureSignificance(${cardId}, '${featureNameEscaped}', this.checked)"
                         title="${feature.is_significant ? 'Снять галочку = создать отдельные карточки для каждого значения' : 'Поставить галочку = группировать СТЕ с одинаковым значением'}">
                     <span class="feature-name">${feature.feature_name}:</span>
-                    <span class="feature-value">${feature.feature_value || '—'}</span>
+                    <span class="feature-value ${isInsignificant ? 'insignificant-clickable' : ''}" 
+                          ${isInsignificant ? `data-card-id="${cardId}" data-feature-name="${featureNameEscaped}" data-feature-value="${featureValueEscaped}" onclick="openFeatureValuesPopup(event, parseInt(this.dataset.cardId), this.dataset.featureName, this.dataset.featureValue || '')"` : ''}
+                          title="${isInsignificant ? 'Кликните, чтобы увидеть все значения из СТЕ (каждое значение = отдельная карточка)' : ''}">
+                        ${feature.feature_value || '—'}
+                    </span>
                     <span class="feature-status-hint">
                         ${feature.is_significant ? '🔗' : '📋'}
                     </span>
                     <div class="feature-actions">
-                        <button class="btn-small" onclick="openEditFeatureModal(${cardId}, '${feature.feature_name}', '${feature.feature_value || ''}')" title="Изменить значение">✏️</button>
+                        <button class="btn-small" onclick="openEditFeatureModal(${cardId}, '${featureNameEscaped}', '${featureValueEscaped}')" title="Изменить значение">✏️</button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
         
         function renderUnassignedStes() {
@@ -1609,6 +1694,162 @@
                 await loadAndRenderFeatures(parseInt(cardId));
             } catch (error) {
                 // Ошибка уже показана
+            }
+        }
+        
+        // Попап с выпадающим меню значений значимой характеристики
+        let currentFeatureValuesPopup = null;
+        
+        async function openFeatureValuesPopup(event, cardId, featureName, currentValue) {
+            // Закрываем предыдущий попап, если есть
+            if (currentFeatureValuesPopup) {
+                currentFeatureValuesPopup.remove();
+                currentFeatureValuesPopup = null;
+            }
+            
+            event.stopPropagation();
+            
+            // Преобразуем cardId в число, если это строка
+            cardId = parseInt(cardId);
+            
+            try {
+                // Загружаем все значения характеристики
+                const response = await apiRequest(`/cards/${cardId}/features/${encodeURIComponent(featureName)}/values`);
+                const data = response.data;
+                
+                if (!data || !data.all_values || data.all_values.length === 0) {
+                    showToast('Нет доступных значений для этой характеристики', 'info');
+                    return;
+                }
+                
+                // Создаем попап
+                const popup = document.createElement('div');
+                popup.className = 'feature-values-popup';
+                popup.id = 'featureValuesPopup';
+                
+                // Позиционируем попап рядом с кликом
+                const rect = event.target.getBoundingClientRect();
+                popup.style.position = 'fixed';
+                
+                // Позиционируем справа от элемента, если есть место, иначе слева
+                const popupWidth = 250;
+                const spaceRight = window.innerWidth - rect.right;
+                const spaceLeft = rect.left;
+                
+                if (spaceRight > popupWidth + 20) {
+                    popup.style.left = `${rect.right + 10}px`;
+                    popup.style.top = `${rect.top}px`;
+                } else if (spaceLeft > popupWidth + 20) {
+                    popup.style.left = `${rect.left - popupWidth - 10}px`;
+                    popup.style.top = `${rect.top}px`;
+                } else {
+                    // По центру экрана
+                    popup.style.left = `${(window.innerWidth - popupWidth) / 2}px`;
+                    popup.style.top = `${Math.max(10, rect.top)}px`;
+                }
+                
+                // Ограничиваем по вертикали, чтобы попап не выходил за границы экрана
+                const popupMaxHeight = 400;
+                const maxTop = window.innerHeight - popupMaxHeight - 20;
+                const currentTop = parseInt(popup.style.top) || rect.top;
+                if (currentTop > maxTop) {
+                    popup.style.top = `${Math.max(10, maxTop)}px`;
+                }
+                
+                // Заголовок
+                const header = document.createElement('div');
+                header.className = 'feature-values-popup-header';
+                header.textContent = `${featureName} (${data.values_count} значений)`;
+                popup.appendChild(header);
+                
+                // Список значений
+                const list = document.createElement('ul');
+                list.className = 'feature-values-list';
+                
+                if (data.all_values.length === 0) {
+                    const li = document.createElement('li');
+                    li.className = 'empty';
+                    li.textContent = 'Нет значений';
+                    list.appendChild(li);
+                } else {
+                    data.all_values.forEach(value => {
+                        const li = document.createElement('li');
+                        li.textContent = value;
+                        const isCurrent = value === currentValue || value === data.current_value;
+                        if (isCurrent) {
+                            li.classList.add('selected');
+                            li.title = 'Текущее значение';
+                        }
+                        li.onclick = (e) => {
+                            e.stopPropagation();
+                            const isSignificant = data.is_significant || false;
+                            if (!isCurrent) {
+                                selectFeatureValue(cardId, featureName, value, currentValue || data.current_value, isSignificant);
+                            }
+                            popup.remove();
+                            currentFeatureValuesPopup = null;
+                        };
+                        list.appendChild(li);
+                    });
+                }
+                
+                popup.appendChild(list);
+                
+                // Добавляем на страницу
+                document.body.appendChild(popup);
+                currentFeatureValuesPopup = popup;
+                
+                // Закрываем попап при клике вне его или по ESC
+                setTimeout(() => {
+                    const closeOnClickOutside = (e) => {
+                        if (!popup.contains(e.target) && e.target !== event.target && !event.target.contains(e.target)) {
+                            popup.remove();
+                            currentFeatureValuesPopup = null;
+                            document.removeEventListener('click', closeOnClickOutside);
+                            document.removeEventListener('keydown', closeOnEsc);
+                        }
+                    };
+                    
+                    const closeOnEsc = (e) => {
+                        if (e.key === 'Escape') {
+                            popup.remove();
+                            currentFeatureValuesPopup = null;
+                            document.removeEventListener('click', closeOnClickOutside);
+                            document.removeEventListener('keydown', closeOnEsc);
+                        }
+                    };
+                    
+                    document.addEventListener('click', closeOnClickOutside);
+                    document.addEventListener('keydown', closeOnEsc);
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error loading feature values:', error);
+                showToast('Ошибка при загрузке значений', 'error');
+            }
+        }
+        
+        async function selectFeatureValue(cardId, featureName, newValue, oldValue, isSignificant = false) {
+            if (isSignificant) {
+                // Для значимых характеристик обновляем значение через API
+                try {
+                    await apiRequest(`/cards/${cardId}/features/change-value`, 'PATCH', {
+                        feature_name: featureName,
+                        old_value: oldValue,
+                        new_value: newValue,
+                        comment: `Изменено через выпадающее меню`
+                    });
+                    
+                    showToast(`Значение "${newValue}" выбрано`, 'success');
+                    await loadAndRenderFeatures(parseInt(cardId));
+                } catch (error) {
+                    console.error('Error changing feature value:', error);
+                    showToast('Ошибка при изменении значения', 'error');
+                }
+            } else {
+                // Для незначимых характеристик просто показываем информацию
+                // Значения не хранятся в базе, они используются только для создания отдельных карточек
+                showToast(`Значение "${newValue}" используется в СТЕ этой карточки. Для незначимых характеристик каждое значение создает отдельную карточку.`, 'info');
             }
         }
         

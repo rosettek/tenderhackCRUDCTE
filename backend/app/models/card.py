@@ -14,7 +14,7 @@ class Card(db.Model):
     title = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text, nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.category_id'), nullable=True)
-    significant_features_hash = db.Column(db.String(64), nullable=True)  # MD5 хэш для быстрой группировки
+    significant_features_list = db.Column(db.JSON, nullable=True)  # Список названий значимых характеристик
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
@@ -29,7 +29,7 @@ class Card(db.Model):
             'title': self.title,
             'description': self.description,
             'category_id': self.category_id,
-            'significant_features_hash': self.significant_features_hash,
+            'significant_features_list': self.significant_features_list or [],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'is_active': self.is_active
@@ -44,13 +44,12 @@ class Card(db.Model):
         
         return result
     
-    def calculate_features_hash(self):
-        """Вычислить хэш значимых характеристик карточки"""
-        import hashlib
-        features_str = '|'.join(
-            sorted([f"{f.feature_name}={f.feature_value or ''}" for f in self.significant_features])
-        )
-        return hashlib.md5(features_str.encode()).hexdigest()
+    def get_significant_features_list(self):
+        """Получить список названий значимых характеристик карточки"""
+        if self.significant_features_list:
+            return self.significant_features_list
+        # Если список не сохранен, получаем из связанных объектов
+        return sorted([f.feature_name for f in self.significant_features])
     
     def __repr__(self):
         return f'<Card {self.title}>'

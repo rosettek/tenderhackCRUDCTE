@@ -13,10 +13,21 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
-    # Инициализация расширений
-    db.init_app(app)
+    # Инициализация расширений с настройками пула соединений
+    config_obj = config[config_name]
+    engine_options = getattr(config_obj, 'SQLALCHEMY_ENGINE_OPTIONS', None)
+    if engine_options:
+        db.init_app(app)
+    else:
+        db.init_app(app)
+    
     migrate.init_app(app, db)
-    CORS(app)
+    # Настройка CORS для автоматической обработки OPTIONS запросов
+    CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})
+    
+    # Регистрация обработчиков ошибок
+    from .utils.error_handlers import register_error_handlers
+    register_error_handlers(app)
     
     # Регистрация blueprints
     from .routes.cards import cards_bp

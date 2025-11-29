@@ -1133,7 +1133,10 @@
         async function loadFeatures(cardId) {
             try {
                 const response = await apiRequest(`/cards/${cardId}/features`);
-                return response.data.features;
+                console.log('Features response for card', cardId, ':', response);
+                const features = response.data?.features || response.data?.significant_features || [];
+                console.log('Features array:', features);
+                return features;
             } catch (error) {
                 console.error('Error loading features:', error);
                 return [];

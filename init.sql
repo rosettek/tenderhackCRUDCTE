@@ -16,14 +16,14 @@ CREATE TABLE IF NOT EXISTS cards (
     title VARCHAR(500) NOT NULL,
     description TEXT,
     category_id INT REFERENCES categories(category_id),
-    -- Хэш значимых характеристик для быстрого поиска дубликатов
-    significant_features_hash VARCHAR(64),
+    -- Список названий значимых характеристик (JSON массив)
+    significant_features_list JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE
 );
 
-CREATE INDEX IF NOT EXISTS idx_cards_sig_hash ON cards(significant_features_hash) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_cards_sig_features_list ON cards USING GIN(significant_features_list) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_cards_category ON cards(category_id) WHERE is_active = TRUE;
 
 -- СТЕ (Стандартные товарные единицы)
@@ -273,16 +273,107 @@ INSERT INTO category_feature_templates (category_id, feature_name, is_recommende
     (2, 'Объём памяти', TRUE, 95),
     (2, 'Оперативная память', TRUE, 80),
     (2, 'Цвет', FALSE, 50),
-    (2, 'Продавец', FALSE, 30)
+    (2, 'Продавец', FALSE, 30),
+    (3, 'Производитель', TRUE, 100),
+    (3, 'Модель', TRUE, 100),
+    (3, 'Процессор', TRUE, 95),
+    (3, 'Оперативная память', TRUE, 90),
+    (3, 'SSD', TRUE, 85),
+    (3, 'Диагональ экрана', TRUE, 80),
+    (4, 'Производитель', TRUE, 100),
+    (4, 'Модель', TRUE, 100)
+ON CONFLICT DO NOTHING;
+
+-- Карточки товаров
+INSERT INTO cards (title, description, category_id, significant_features_list, is_active) VALUES 
+    ('Samsung Galaxy S21', 'Флагманский смартфон Samsung 2021 года', 2, '["Производитель", "Модель", "Объём памяти", "Оперативная память"]'::jsonb, TRUE),
+    ('iPhone 14 Pro', 'Флагманский смартфон Apple 2022 года', 2, '["Производитель", "Модель", "Объём памяти", "Оперативная память"]'::jsonb, TRUE),
+    ('MacBook Pro 14', 'Профессиональный ноутбук Apple с чипом M2 Pro', 3, '["Производитель", "Модель", "Процессор", "Оперативная память", "SSD"]'::jsonb, TRUE),
+    ('Lenovo ThinkPad X1 Carbon', 'Бизнес-ноутбук премиум класса', 3, '["Производитель", "Модель", "Процессор", "Оперативная память", "SSD"]'::jsonb, TRUE),
+    ('Samsung Galaxy Watch 6', 'Умные часы Samsung', 4, '["Производитель", "Модель", "Размер корпуса"]'::jsonb, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- Значимые характеристики карточек
+INSERT INTO card_significant_features (card_id, feature_name, feature_value, display_order) VALUES 
+    -- Samsung Galaxy S21
+    (1, 'Производитель', 'Samsung', 0),
+    (1, 'Модель', 'Galaxy S21', 1),
+    (1, 'Объём памяти', '128 ГБ', 2),
+    (1, 'Оперативная память', '8 ГБ', 3),
+    -- iPhone 14 Pro
+    (2, 'Производитель', 'Apple', 0),
+    (2, 'Модель', 'iPhone 14 Pro', 1),
+    (2, 'Объём памяти', '256 ГБ', 2),
+    (2, 'Оперативная память', '6 ГБ', 3),
+    -- MacBook Pro 14
+    (3, 'Производитель', 'Apple', 0),
+    (3, 'Модель', 'MacBook Pro 14', 1),
+    (3, 'Процессор', 'Apple M2 Pro', 2),
+    (3, 'Оперативная память', '16 ГБ', 3),
+    (3, 'SSD', '512 ГБ', 4),
+    -- ThinkPad X1 Carbon
+    (4, 'Производитель', 'Lenovo', 0),
+    (4, 'Модель', 'ThinkPad X1 Carbon Gen 11', 1),
+    (4, 'Процессор', 'Intel Core i7-1365U', 2),
+    (4, 'Оперативная память', '16 ГБ', 3),
+    (4, 'SSD', '512 ГБ', 4),
+    -- Galaxy Watch 6
+    (5, 'Производитель', 'Samsung', 0),
+    (5, 'Модель', 'Galaxy Watch 6', 1),
+    (5, 'Размер корпуса', '44 мм', 2)
+ON CONFLICT DO NOTHING;
+
+-- СТЕ (привязанные к карточкам)
+INSERT INTO ste (name, card_id, attributes) VALUES 
+    -- Samsung Galaxy S21
+    ('Samsung Galaxy S21 128GB Phantom Gray', 1, '{"Производитель": "Samsung", "Модель": "Galaxy S21", "Объём памяти": "128 ГБ", "Оперативная память": "8 ГБ", "Цвет": "Phantom Gray", "Состояние": "новый"}'::jsonb),
+    ('Samsung Galaxy S21 256GB Phantom White', 1, '{"Производитель": "Samsung", "Модель": "Galaxy S21", "Объём памяти": "256 ГБ", "Оперативная память": "8 ГБ", "Цвет": "Phantom White", "Состояние": "новый"}'::jsonb),
+    ('Samsung Galaxy S21 128GB Phantom Pink', 1, '{"Производитель": "Samsung", "Модель": "Galaxy S21", "Объём памяти": "128 ГБ", "Оперативная память": "8 ГБ", "Цвет": "Phantom Pink", "Состояние": "восстановленный"}'::jsonb),
+    -- iPhone 14 Pro
+    ('iPhone 14 Pro 256GB Deep Purple', 2, '{"Производитель": "Apple", "Модель": "iPhone 14 Pro", "Объём памяти": "256 ГБ", "Оперативная память": "6 ГБ", "Цвет": "Deep Purple", "Состояние": "новый"}'::jsonb),
+    ('iPhone 14 Pro 512GB Space Black', 2, '{"Производитель": "Apple", "Модель": "iPhone 14 Pro", "Объём памяти": "512 ГБ", "Оперативная память": "6 ГБ", "Цвет": "Space Black", "Состояние": "новый"}'::jsonb),
+    ('iPhone 14 Pro 256GB Gold', 2, '{"Производитель": "Apple", "Модель": "iPhone 14 Pro", "Объём памяти": "256 ГБ", "Оперативная память": "6 ГБ", "Цвет": "Gold", "Состояние": "новый"}'::jsonb),
+    ('iPhone 14 Pro 128GB Silver', 2, '{"Производитель": "Apple", "Модель": "iPhone 14 Pro", "Объём памяти": "128 ГБ", "Оперативная память": "6 ГБ", "Цвет": "Silver", "Состояние": "восстановленный"}'::jsonb),
+    -- MacBook Pro 14
+    ('MacBook Pro 14 M2 Pro 16GB 512GB Space Gray', 3, '{"Производитель": "Apple", "Модель": "MacBook Pro 14", "Процессор": "Apple M2 Pro", "Оперативная память": "16 ГБ", "SSD": "512 ГБ", "Цвет": "Space Gray"}'::jsonb),
+    ('MacBook Pro 14 M2 Pro 32GB 1TB Silver', 3, '{"Производитель": "Apple", "Модель": "MacBook Pro 14", "Процессор": "Apple M2 Pro", "Оперативная память": "32 ГБ", "SSD": "1 ТБ", "Цвет": "Silver"}'::jsonb),
+    -- ThinkPad X1 Carbon
+    ('ThinkPad X1 Carbon Gen 11 i7 16GB 512GB', 4, '{"Производитель": "Lenovo", "Модель": "ThinkPad X1 Carbon Gen 11", "Процессор": "Intel Core i7-1365U", "Оперативная память": "16 ГБ", "SSD": "512 ГБ"}'::jsonb),
+    ('ThinkPad X1 Carbon Gen 11 i5 8GB 256GB', 4, '{"Производитель": "Lenovo", "Модель": "ThinkPad X1 Carbon Gen 11", "Процессор": "Intel Core i5-1345U", "Оперативная память": "8 ГБ", "SSD": "256 ГБ"}'::jsonb),
+    -- Galaxy Watch 6
+    ('Samsung Galaxy Watch 6 44mm Graphite', 5, '{"Производитель": "Samsung", "Модель": "Galaxy Watch 6", "Размер корпуса": "44 мм", "Цвет": "Graphite"}'::jsonb),
+    ('Samsung Galaxy Watch 6 40mm Gold', 5, '{"Производитель": "Samsung", "Модель": "Galaxy Watch 6", "Размер корпуса": "40 мм", "Цвет": "Gold"}'::jsonb)
+ON CONFLICT DO NOTHING;
+
+-- СТЕ (нераспределённые, без карточки)
+INSERT INTO ste (name, card_id, attributes) VALUES 
+    ('Xiaomi 13 Pro 256GB Black', NULL, '{"Производитель": "Xiaomi", "Модель": "13 Pro", "Объём памяти": "256 ГБ", "Цвет": "Black"}'::jsonb),
+    ('Xiaomi 13 Pro 512GB White', NULL, '{"Производитель": "Xiaomi", "Модель": "13 Pro", "Объём памяти": "512 ГБ", "Цвет": "White"}'::jsonb),
+    ('Google Pixel 8 Pro 128GB Obsidian', NULL, '{"Производитель": "Google", "Модель": "Pixel 8 Pro", "Объём памяти": "128 ГБ", "Цвет": "Obsidian"}'::jsonb),
+    ('Google Pixel 8 256GB Hazel', NULL, '{"Производитель": "Google", "Модель": "Pixel 8", "Объём памяти": "256 ГБ", "Цвет": "Hazel"}'::jsonb),
+    ('OnePlus 12 256GB Flowy Emerald', NULL, '{"Производитель": "OnePlus", "Модель": "12", "Объём памяти": "256 ГБ", "Цвет": "Flowy Emerald"}'::jsonb),
+    ('ASUS ROG Zephyrus G14 RTX 4060', NULL, '{"Производитель": "ASUS", "Модель": "ROG Zephyrus G14", "Видеокарта": "RTX 4060", "Оперативная память": "16 ГБ"}'::jsonb),
+    ('Dell XPS 15 i7 32GB 1TB', NULL, '{"Производитель": "Dell", "Модель": "XPS 15", "Процессор": "Intel Core i7-13700H", "Оперативная память": "32 ГБ", "SSD": "1 ТБ"}'::jsonb),
+    ('HP Spectre x360 16 i7 16GB', NULL, '{"Производитель": "HP", "Модель": "Spectre x360 16", "Процессор": "Intel Core i7-1360P", "Оперативная память": "16 ГБ"}'::jsonb),
+    ('AirPods Pro 2nd Gen', NULL, '{"Производитель": "Apple", "Модель": "AirPods Pro", "Поколение": "2nd"}'::jsonb),
+    ('Sony WH-1000XM5 Black', NULL, '{"Производитель": "Sony", "Модель": "WH-1000XM5", "Цвет": "Black", "Тип": "наушники"}'::jsonb),
+    ('Logitech MX Master 3S', NULL, '{"Производитель": "Logitech", "Модель": "MX Master 3S", "Тип": "мышь"}'::jsonb),
+    ('Samsung T7 Shield 2TB', NULL, '{"Производитель": "Samsung", "Модель": "T7 Shield", "Ёмкость": "2 ТБ", "Тип": "SSD"}'::jsonb)
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- Вывод информации о созданных таблицах
+-- Вывод информации о созданных таблицах и данных
 -- =====================================================
 DO $$
 BEGIN
     RAISE NOTICE '✅ База данных успешно инициализирована!';
     RAISE NOTICE '📊 Созданы таблицы: categories, cards, ste, card_significant_features, category_feature_templates, feature_change_logs, card_merge_logs';
-    RAISE NOTICE '📝 Добавлены тестовые данные';
+    RAISE NOTICE '📝 Добавлены тестовые данные:';
+    RAISE NOTICE '   - 7 категорий';
+    RAISE NOTICE '   - 5 карточек товаров';
+    RAISE NOTICE '   - 13 привязанных СТЕ';
+    RAISE NOTICE '   - 12 нераспределённых СТЕ';
+    RAISE NOTICE '   - 21 значимая характеристика для карточек';
+    RAISE NOTICE '   - 14 шаблонов характеристик по категориям';
 END $$;
 

@@ -152,7 +152,7 @@ CREATE TABLE category_feature_templates (
 | `comment` | TEXT, NULLABLE | Комментарий модератора |
 
 ```sql
-CREATE TABLE feature_change_logs (
+CREATE TABLE feature_change_s (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
     operation ENUM(
         'mark_significant',

@@ -1,20 +1,18 @@
 """
 Сервис пересоздания карточек при изменении значимых характеристик
 """
-import hashlib
 from typing import List, Dict, Optional, Tuple
 from app import db
 from app.models import Card, STE, CardSignificantFeature, CategoryFeatureTemplate, FeatureChangeLog
 
 
-def calculate_features_hash(feature_names: List[str], ste_attributes: Dict) -> str:
-    """Вычислить MD5 хэш значимых характеристик для СТЕ"""
+def get_features_key(feature_names: List[str], ste_attributes: Dict) -> tuple:
+    """Получить ключ группировки на основе значений значимых характеристик"""
     values = []
     for feature_name in sorted(feature_names):
-        value = ste_attributes.get(feature_name, '') if ste_attributes else ''
-        values.append(f"{feature_name}={value}")
-    features_str = '|'.join(values)
-    return hashlib.md5(features_str.encode()).hexdigest()
+        value = ste_attributes.get(feature_name, '__missing__') if ste_attributes else '__missing__'
+        values.append((feature_name, str(value)))
+    return tuple(values)
 
 
 def get_significant_features_for_category(category_id: int, custom_features: Optional[List[str]] = None) -> List[str]:
@@ -22,7 +20,32 @@ def get_significant_features_for_category(category_id: int, custom_features: Opt
     if custom_features:
         return custom_features
     
-    # Получаем из шаблонов
+    # ПРИОРИТЕТ 1: Собираем значимые характеристики из активных карточек категории
+    # Это самый надежный источник, так как пользователь явно пометил их как значимые
+    active_cards = Card.query.filter_by(
+        category_id=category_id,
+        is_active=True
+    ).all()
+    
+    if active_cards:
+        # Собираем все значимые характеристики из всех активных карточек
+        significant_features_set = set()
+        for card in active_cards:
+            # Получаем из таблицы card_significant_features
+            sig_features = CardSignificantFeature.query.filter_by(
+                card_id=card.card_id
+            ).all()
+            for sig_feature in sig_features:
+                significant_features_set.add(sig_feature.feature_name)
+            
+            # Также проверяем поле significant_features_list в карточке
+            if card.significant_features_list:
+                significant_features_set.update(card.significant_features_list)
+        
+        if significant_features_set:
+            return sorted(list(significant_features_set))
+    
+    # ПРИОРИТЕТ 2: Получаем из шаблонов категории
     templates = CategoryFeatureTemplate.query.filter_by(
         category_id=category_id,
         is_recommended_significant=True
@@ -31,8 +54,8 @@ def get_significant_features_for_category(category_id: int, custom_features: Opt
     if templates:
         return [t.feature_name for t in templates]
     
-    # Если нет шаблонов, собираем все уникальные характеристики из СТЕ категории
-    from sqlalchemy import func
+    # ПРИОРИТЕТ 3: Если нет шаблонов и нет помеченных характеристик, 
+    # собираем все уникальные характеристики из СТЕ категории
     stes = db.session.query(STE).join(Card).filter(
         Card.category_id == category_id,
         Card.is_active == True
@@ -90,8 +113,8 @@ def recreate_cards_for_category(
         Card.category_id == category_id
     ).all()
     
-    # Группируем СТЕ по хэшу значимых характеристик
-    cards_by_hash: Dict[str, Card] = {}
+    # Группируем СТЕ по значениям значимых характеристик
+    cards_by_key: Dict[tuple, Card] = {}
     redistribution_summary = []
     ste_reassigned = 0
     
@@ -99,17 +122,17 @@ def recreate_cards_for_category(
         if not ste.attributes:
             continue
         
-        # Вычисляем хэш для этой СТЕ
-        features_hash = calculate_features_hash(sig_features, ste.attributes)
+        # Получаем ключ группировки на основе значений характеристик
+        features_key = get_features_key(sig_features, ste.attributes)
         
-        # Ищем или создаём карточку с таким хэшем
-        if features_hash not in cards_by_hash:
+        # Ищем или создаём карточку с таким ключом
+        if features_key not in cards_by_key:
             # Создаём новую карточку
             new_card = Card(
                 title=ste.name,
                 description=None,
                 category_id=category_id,
-                significant_features_hash=features_hash,
+                significant_features_list=sorted(sig_features),  # Сохраняем список названий характеристик
                 is_active=True
             )
             db.session.add(new_card)
@@ -127,7 +150,7 @@ def recreate_cards_for_category(
                     )
                     db.session.add(sig_feature)
             
-            cards_by_hash[features_hash] = new_card
+            cards_by_key[features_key] = new_card
             
             # Логируем создание новой карточки
             redistribution_summary.append({
@@ -138,7 +161,7 @@ def recreate_cards_for_category(
         
         # Привязываем СТЕ к карточке
         old_card_id = ste.card_id
-        ste.card_id = cards_by_hash[features_hash].card_id
+        ste.card_id = cards_by_key[features_key].card_id
         ste_reassigned += 1
         
         # Обновляем счётчик СТЕ в summary
@@ -148,8 +171,8 @@ def recreate_cards_for_category(
                 break
     
     # Логируем операцию (используем первую созданную карточку для card_id, если есть)
-    if cards_by_hash:
-        first_card_id = list(cards_by_hash.values())[0].card_id
+    if cards_by_key:
+        first_card_id = list(cards_by_key.values())[0].card_id
         log = FeatureChangeLog(
             operation='recreate_cards',
             card_id=first_card_id,
@@ -164,7 +187,7 @@ def recreate_cards_for_category(
     
     return {
         'old_cards_deactivated': len(old_card_ids),
-        'new_cards_created': len(cards_by_hash),
+        'new_cards_created': len(cards_by_key),
         'ste_reassigned': ste_reassigned,
         'significant_features_used': sig_features,
         'redistribution_summary': redistribution_summary

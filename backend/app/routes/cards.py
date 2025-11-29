@@ -9,7 +9,13 @@ cards_bp = Blueprint('cards', __name__)
 def get_cards():
     """Получить список всех карточек с СТЕ"""
     include_stes = request.args.get('include_stes', 'true').lower() == 'true'
-    cards = Card.query.filter_by(is_active=True).all()
+    category_id = request.args.get('category_id', type=int)
+    
+    query = Card.query.filter_by(is_active=True)
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    
+    cards = query.all()
     return jsonify({
         'success': True,
         'data': {
@@ -74,6 +80,12 @@ def update_card(card_id):
     
     data = request.get_json()
     
+    if not data:
+        return jsonify({
+            'success': False,
+            'message': 'Тело запроса не может быть пустым'
+        }), 400
+    
     if 'title' in data:
         card.title = data['title']
     if 'description' in data:
@@ -127,8 +139,11 @@ def redistribute_cards():
     from app.models import STE, CardSignificantFeature
     from collections import defaultdict
     
-    # Получаем все СТЕ
-    stes = STE.query.all()
+    # Получаем СТЕ (все или только для категории)
+    if category_id:
+        stes = STE.query.join(Card).filter(Card.category_id == category_id).all()
+    else:
+        stes = STE.query.all()
     
     if not significant_features:
         # Если не указаны значимые характеристики, возвращаем текущее состояние
@@ -146,7 +161,17 @@ def redistribute_cards():
             }
         })
     
-    # Группируем СТЕ по значимым характеристикам
+    # Собираем все уникальные характеристики из всех СТЕ категории
+    all_features_set = set()
+    for ste in stes:
+        if ste.attributes:
+            all_features_set.update(ste.attributes.keys())
+    
+    # Определяем незначимые характеристики (все характеристики, кроме значимых)
+    insignificant_features = sorted(list(all_features_set - set(significant_features)))
+    
+    # Группируем СТЕ по значимым И незначимым характеристикам
+    # Значимые - группируют, незначимые - разбивают на отдельные карточки
     groups = defaultdict(list)
     
     for ste in stes:
@@ -155,14 +180,29 @@ def redistribute_cards():
             groups[('__no_attributes__',)].append(ste)
             continue
         
-        # Создаём ключ группировки из значимых характеристик
+        # Создаём ключ группировки:
+        # 1. Сначала по значимым характеристикам (группируют)
+        # 2. Потом по незначимым характеристикам (разбивают на отдельные карточки)
         key_parts = []
+        
+        # Добавляем значимые характеристики
         for feature in significant_features:
             value = ste.attributes.get(feature, '__missing__')
-            key_parts.append(f"{feature}:{value}")
+            key_parts.append(f"sig:{feature}:{value}")
+        
+        # Добавляем незначимые характеристики (каждое значение = отдельная карточка)
+        for feature in insignificant_features:
+            value = ste.attributes.get(feature, '__missing__')
+            key_parts.append(f"insig:{feature}:{value}")
         
         group_key = tuple(sorted(key_parts))
         groups[group_key].append(ste)
+    
+    # Деактивируем старые карточки категории (если указана категория)
+    if category_id:
+        old_cards = Card.query.filter_by(category_id=category_id, is_active=True).all()
+        for old_card in old_cards:
+            old_card.is_active = False
     
     # Создаём/обновляем карточки для каждой группы
     created_cards = []
@@ -172,17 +212,24 @@ def redistribute_cards():
         if group_key == ('__no_attributes__',):
             card_title = "СТЕ без атрибутов"
         else:
-            # Формируем название карточки из значений характеристик
-            title_parts = [part.split(':')[1] for part in group_key if ':' in part]
-            card_title = ' | '.join([p for p in title_parts if p != '__missing__'])
-            if not card_title:
-                card_title = "Группа СТЕ"
+            # Формируем название карточки только из значимых характеристик
+            # (незначимые не показываем в названии, так как они разбивают на отдельные карточки)
+            title_parts = []
+            for part in group_key:
+                if part.startswith('sig:'):
+                    # Формат: sig:feature_name:value
+                    parts = part.split(':', 2)
+                    if len(parts) == 3 and parts[2] != '__missing__':
+                        title_parts.append(parts[2])
+            
+            card_title = ' | '.join(title_parts) if title_parts else "Группа СТЕ"
         
         # Создаём новую карточку
         new_card = Card(
             title=card_title,
             description=f"Автоматически создана при группировке по: {', '.join(significant_features)}",
-            category_id=category_id
+            category_id=category_id,
+            significant_features_list=sorted(significant_features)  # Сохраняем список названий характеристик
         )
         db.session.add(new_card)
         db.session.flush()
@@ -195,20 +242,27 @@ def redistribute_cards():
                 'new_card_id': new_card.card_id
             })
         
-        # Добавляем характеристики к карточке
-        for feature in significant_features:
-            # Берём первое значение из группы
+        # Добавляем значимые характеристики к карточке
+        for idx, feature in enumerate(significant_features):
+            # Для значимых характеристик берем значение из группы
+            # (все СТЕ в группе должны иметь одинаковое значение значимых характеристик)
             sample_ste = group_stes[0]
             if sample_ste.attributes:
                 value = sample_ste.attributes.get(feature)
                 if value:
-                    card_feature = CardSignificantFeature(
+                    # Проверяем, не существует ли уже такая характеристика
+                    existing = CardSignificantFeature.query.filter_by(
                         card_id=new_card.card_id,
-                        feature_name=feature,
-                        feature_value=str(value),
-                        display_order=0
-                    )
-                    db.session.add(card_feature)
+                        feature_name=feature
+                    ).first()
+                    if not existing:
+                        card_feature = CardSignificantFeature(
+                            card_id=new_card.card_id,
+                            feature_name=feature,
+                            feature_value=str(value),  # Значение для группировки (все СТЕ в карточке имеют это значение)
+                            display_order=idx
+                        )
+                        db.session.add(card_feature)
         
         created_cards.append({
             'card_id': new_card.card_id,

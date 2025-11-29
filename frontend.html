@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tender Hack - Управление карточками</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Кнопки */
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-danger {
+            background-color: var(--accent-color);
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+        }
+        
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+        }
+        
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        /* Панель действий */
+        .action-panel {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .action-panel-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .action-panel-right {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Основной контент */
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .cards-section h2,
+        .unassigned-section h2 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        /* Карточки */
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        /* СТЕ контейнер */
+        .ste-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .ste-item {
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+            transition: all 0.2s;
+        }
+        
+        .ste-item:hover {
+            border-color: var(--secondary-color);
+            background-color: #f0f8ff;
+        }
+        
+        .ste-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .ste-item-name {
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+        
+        .ste-item-attributes {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        .ste-item-attributes span {
+            display: inline-block;
+            background-color: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 2px;
+        }
+        
+        .ste-assign-select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        
+        /* СТЕ в карточках */
+        .ste-section-card {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 2px dashed transparent;
+            transition: all 0.2s;
+        }
+        
+        .ste-section-card.drag-over {
+            border-color: var(--secondary-color);
+            background-color: #e3f2fd;
+        }
+        
+        .ste-section-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--dark-color);
+        }
+        
+        .ste-list-card {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .ste-card-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        
+        .ste-card-item:hover {
+            border-color: var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .ste-card-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .ste-card-item-name {
+            font-size: 12px;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 8px;
+        }
+        
+        .ste-card-item-actions {
+            display: flex;
+            gap: 3px;
+        }
+        
+        .ste-card-item-actions .btn-small {
+            padding: 2px 6px;
+            font-size: 10px;
+        }
+        
+        .empty-ste {
+            text-align: center;
+            padding: 15px;
+            color: #999;
+            font-size: 12px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Drag & Drop для нераспределённых СТЕ */
+        .ste-item[draggable="true"] {
+            cursor: grab;
+        }
+        
+        .ste-item.dragging {
+            opacity: 0.5;
+        }
+        
+        .card.drag-over {
+            border: 2px dashed var(--secondary-color);
+            background-color: #f0f8ff;
+        }
+        
+        /* Кнопка перераспределения */
+        .redistribute-btn {
+            background-color: var(--warning-color);
+        }
+        
+        .redistribute-btn:hover {
+            background-color: #e67e22;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .card.selected {
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .card-id {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .card-description {
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        /* Характеристики */
+        .features-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .features-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            gap: 10px;
+        }
+        
+        .feature-item.significant {
+            background-color: #e8f5e9;
+            border-left: 3px solid var(--success-color);
+        }
+        
+        .feature-item.insignificant {
+            background-color: #fff3e0;
+            border-left: 3px solid var(--warning-color);
+        }
+        
+        .feature-status-hint {
+            font-size: 14px;
+            margin-left: 5px;
+            opacity: 0.7;
+        }
+        
+        .feature-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .feature-name {
+            font-weight: 500;
+            min-width: 120px;
+        }
+        
+        .feature-value {
+            flex: 1;
+            color: var(--dark-color);
+        }
+        
+        .feature-value-input {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Список атрибутов СТЕ в модальном окне */
+        .ste-attributes-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        
+        .ste-attribute-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #eee;
+        }
+        
+        .ste-attribute-item:hover {
+            background: #e3f2fd;
+            border-color: var(--secondary-color);
+        }
+        
+        .ste-attribute-item.selected {
+            background: #bbdefb;
+            border-color: var(--secondary-color);
+        }
+        
+        .ste-attribute-name {
+            font-weight: 600;
+            min-width: 150px;
+            color: var(--primary-color);
+        }
+        
+        .ste-attribute-values {
+            flex: 1;
+            color: #666;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .ste-attribute-values .value-tag {
+            display: inline-block;
+            background: #e0e0e0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin: 2px;
+            font-size: 11px;
+        }
+        
+        .form-divider {
+            text-align: center;
+            margin: 15px 0;
+            position: relative;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .form-divider::before,
+        .form-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #ddd;
+        }
+        
+        .form-divider::before {
+            left: 0;
+        }
+        
+        .form-divider::after {
+            right: 0;
+        }
+        
+        .hint {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+        
+        .feature-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        /* СТЕ секция */
+        .ste-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .ste-count {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #7f8c8d;
+            padding: 0;
+        }
+        
+        .close-modal:hover {
+            color: var(--accent-color);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Toast уведомления */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+        
+        .toast {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.success {
+            background-color: var(--success-color);
+        }
+        
+        .toast.error {
+            background-color: var(--accent-color);
+        }
+        
+        .toast.warning {
+            background-color: var(--warning-color);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Загрузка */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            z-index: 1500;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+        
+        /* Предпросмотр объединения */
+        .merge-preview {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .merge-preview-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .merge-preview-item:last-child {
+            border-bottom: none;
+        }
+        
+        .conflict-item {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        /* История */
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-date {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        /* Добавление характеристики */
+        .add-feature-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .add-feature-form input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast контейнер -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Индикатор загрузки -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+    
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">Tender Hack - Управление карточками</div>
+                <div class="header-actions">
+                    <button id="createCardBtn" class="btn-success">+ Создать карточку</button>
+                    <button id="refreshBtn">🔄 Обновить</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Панель действий -->
+        <div class="action-panel">
+            <div class="action-panel-left">
+                <label>
+                    <input type="checkbox" id="selectAllCards"> Выбрать все
+                </label>
+                <span id="selectedCount">Выбрано: 0</span>
+            </div>
+            <div class="action-panel-right">
+                <button id="redistributeBtn" class="redistribute-btn">🔄 Перераспределить</button>
+                <button id="mergeBtn" disabled>🔗 Объединить выбранные</button>
+            </div>
+        </div>
+        
+        <!-- Основной контент -->
+        <div class="main-content">
+            <!-- Левая колонка: Карточки -->
+            <div class="cards-section">
+                <h2>Карточки товаров</h2>
+                <div class="cards-container" id="cardsContainer">
+                    <div class="empty-state">
+                        <h3>Загрузка...</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Правая колонка: Нераспределённые СТЕ -->
+            <div class="unassigned-section">
+                <h2>Нераспределённые СТЕ <span id="unassignedCount">(0)</span></h2>
+                <div class="ste-container" id="unassignedSteContainer">
+                    <div class="empty-state">
+                        <h3>Загрузка...</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно создания/редактирования карточки -->
+    <div class="modal" id="cardModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="cardModalTitle">Создать карточку</h3>
+                <button class="close-modal" data-modal="cardModal">&times;</button>
+            </div>
+            <form id="cardForm">
+                <input type="hidden" id="cardFormId">
+                <div class="form-group">
+                    <label for="cardFormTitle">Название *</label>
+                    <input type="text" id="cardFormTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="cardFormDescription">Описание</label>
+                    <textarea id="cardFormDescription"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="close-modal" data-modal="cardModal">Отмена</button>
+                    <button type="submit" class="btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно добавления характеристики -->
+    <div class="modal" id="addFeatureModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Добавить характеристику</h3>
+                <button class="close-modal" data-modal="addFeatureModal">&times;</button>
+            </div>
+            <form id="addFeatureForm">
+                <input type="hidden" id="addFeatureCardId">
+                
+                <!-- Выбор из атрибутов СТЕ -->
+                <div class="form-group">
+                    <label>Выберите характеристику из СТЕ:</label>
+                    <div id="steAttributesList" class="ste-attributes-list">
+                        <div class="loading-spinner">Загрузка атрибутов...</div>
+                    </div>
+                </div>
+                
+                <div class="form-divider">или введите вручную</div>
+                
+                <div class="form-group">
+                    <label for="addFeatureName">Название характеристики *</label>
+                    <input type="text" id="addFeatureName" required>
+                </div>
+                <div class="form-group">
+                    <label for="addFeatureValue">Значение *</label>
+                    <input type="text" id="addFeatureValue" required>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="addFeatureSignificant" checked> 
+                        <strong>Значимая характеристика</strong>
+                        <span class="hint">(группировать СТЕ по этому атрибуту)</span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="close-modal" data-modal="addFeatureModal">Отмена</button>
+                    <button type="submit" class="btn-success">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно изменения значения характеристики -->
+    <div class="modal" id="editFeatureModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Изменить значение</h3>
+                <button class="close-modal" data-modal="editFeatureModal">&times;</button>
+            </div>
+            <form id="editFeatureForm">
+                <input type="hidden" id="editFeatureCardId">
+                <input type="hidden" id="editFeatureName">
+                <input type="hidden" id="editFeatureOldValue">
+                <div class="form-group">
+                    <label>Характеристика</label>
+                    <input type="text" id="editFeatureNameDisplay" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label for="editFeatureNewValue">Новое значение *</label>
+                    <input type="text" id="editFeatureNewValue" required>
+                </div>
+                <div class="form-group">
+                    <label for="editFeatureComment">Комментарий</label>
+                    <input type="text" id="editFeatureComment" placeholder="Причина изменения...">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="close-modal" data-modal="editFeatureModal">Отмена</button>
+                    <button type="submit" class="btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно объединения карточек -->
+    <div class="modal" id="mergeModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Объединение карточек</h3>
+                <button class="close-modal" data-modal="mergeModal">&times;</button>
+            </div>
+            <div id="mergePreviewContent">
+                <!-- Контент предпросмотра -->
+            </div>
+            <form id="mergeForm">
+                <div class="form-group">
+                    <label for="mergeTargetCard">Целевая карточка (куда объединять)</label>
+                    <select id="mergeTargetCard">
+                        <!-- Опции будут добавлены динамически -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="mergeCreateNew"> Создать новую карточку
+                    </label>
+                </div>
+                <div class="form-group" id="mergeNewTitleGroup" style="display: none;">
+                    <label for="mergeNewTitle">Название новой карточки</label>
+                    <input type="text" id="mergeNewTitle">
+                </div>
+                <div class="form-group">
+                    <label for="mergeComment">Комментарий</label>
+                    <input type="text" id="mergeComment" placeholder="Причина объединения...">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="close-modal" data-modal="mergeModal">Отмена</button>
+                    <button type="submit" class="btn-warning">Объединить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно истории объединений -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">История объединений</h3>
+                <button class="close-modal" data-modal="historyModal">&times;</button>
+            </div>
+            <div id="historyContent">
+                <!-- Контент истории -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно редактирования СТЕ -->
+    <div class="modal" id="editSteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Редактировать СТЕ</h3>
+                <button class="close-modal" data-modal="editSteModal">&times;</button>
+            </div>
+            <form id="editSteForm">
+                <input type="hidden" id="editSteId">
+                <div class="form-group">
+                    <label for="editSteName">Название СТЕ *</label>
+                    <input type="text" id="editSteName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editSteAttributes">Атрибуты (JSON)</label>
+                    <textarea id="editSteAttributes" rows="6" style="font-family: monospace; font-size: 12px;"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="close-modal" data-modal="editSteModal">Отмена</button>
+                    <button type="submit" class="btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ==================== КОНФИГУРАЦИЯ ====================
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        // ==================== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ====================
+        let cards = [];
+        let unassignedStes = [];
+        let selectedCardIds = new Set();
+        
+        // ==================== API КЛИЕНТ ====================
+        async function apiRequest(endpoint, method = 'GET', body = null) {
+            showLoading(true);
+            
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Ошибка API');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                showToast(error.message, 'error');
+                throw error;
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // ==================== UI УТИЛИТЫ ====================
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+        
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        function updateSelectedCount() {
+            document.getElementById('selectedCount').textContent = `Выбрано: ${selectedCardIds.size}`;
+            document.getElementById('mergeBtn').disabled = selectedCardIds.size < 2;
+        }
+        
+        // ==================== ЗАГРУЗКА ДАННЫХ ====================
+        async function loadCards() {
+            try {
+                const response = await apiRequest('/cards');
+                cards = response.data.cards;
+                renderCards();
+            } catch (error) {
+                document.getElementById('cardsContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ошибка загрузки</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadCards()">Повторить</button>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadUnassignedStes() {
+            try {
+                const response = await apiRequest('/ste?unassigned=true');
+                unassignedStes = response.data.stes;
+                renderUnassignedStes();
+            } catch (error) {
+                document.getElementById('unassignedSteContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ошибка загрузки СТЕ</h3>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadAllData() {
+            await Promise.all([loadCards(), loadUnassignedStes()]);
+        }
+        
+        async function loadCardWithDetails(cardId) {
+            try {
+                const response = await apiRequest(`/cards/${cardId}`);
+                return response.data;
+            } catch (error) {
+                console.error('Error loading card details:', error);
+                return null;
+            }
+        }
+        
+        async function loadFeatures(cardId) {
+            try {
+                const response = await apiRequest(`/cards/${cardId}/features`);
+                return response.data.features;
+            } catch (error) {
+                console.error('Error loading features:', error);
+                return [];
+            }
+        }
+        
+        // ==================== РЕНДЕРИНГ ====================
+        function renderCards() {
+            const container = document.getElementById('cardsContainer');
+            
+            if (cards.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Нет карточек</h3>
+                        <p>Создайте первую карточку</p>
+                        <button onclick="openCreateCardModal()">+ Создать карточку</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = cards.map(card => `
+                <div class="card ${selectedCardIds.has(card.card_id) ? 'selected' : ''}" 
+                     data-card-id="${card.card_id}"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, ${card.card_id})">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <input type="checkbox" class="card-checkbox" data-card-id="${card.card_id}" 
+                                ${selectedCardIds.has(card.card_id) ? 'checked' : ''}>
+                            <div>
+                                <div class="card-title">${card.title}</div>
+                                <div class="card-id">ID: ${card.card_id} | СТЕ: ${card.ste_count || 0}</div>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-small" onclick="openEditCardModal(${card.card_id})">✏️</button>
+                            <button class="btn-small" onclick="showHistory(${card.card_id})">📜</button>
+                            <button class="btn-small btn-danger" onclick="deleteCard(${card.card_id})">🗑️</button>
+                        </div>
+                    </div>
+                    ${card.description ? `<div class="card-description">${card.description}</div>` : ''}
+                    
+                    <!-- СТЕ секция -->
+                    <div class="ste-section-card">
+                        <div class="ste-section-title">
+                            <span>СТЕ (${card.stes ? card.stes.length : 0})</span>
+                        </div>
+                        <div class="ste-list-card" id="ste-list-${card.card_id}">
+                            ${card.stes && card.stes.length > 0 ? card.stes.map(ste => `
+                                <div class="ste-card-item" 
+                                     draggable="true" 
+                                     data-ste-id="${ste.ste_id}"
+                                     ondragstart="handleDragStart(event, ${ste.ste_id})">
+                                    <div class="ste-card-item-name">${ste.name}</div>
+                                    <div class="ste-card-item-actions">
+                                        <button class="btn-small" onclick="openEditSteModal(${ste.ste_id}, '${ste.name.replace(/'/g, "\\'")}', ${JSON.stringify(ste.attributes || {}).replace(/"/g, '&quot;')})">✏️</button>
+                                        <button class="btn-small btn-danger" onclick="unassignSte(${ste.ste_id})">✕</button>
+                                    </div>
+                                </div>
+                            `).join('') : '<div class="empty-ste">Перетащите СТЕ сюда</div>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Характеристики -->
+                    <div class="features-section" id="features-${card.card_id}">
+                        <div class="features-title">
+                            <span>Значимые характеристики</span>
+                            <button class="btn-small btn-success" onclick="openAddFeatureModal(${card.card_id})">+</button>
+                        </div>
+                        <div class="features-list" id="features-list-${card.card_id}">
+                            <div class="empty-state" style="padding: 10px;">Загрузка...</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Добавляем обработчики чекбоксов
+            document.querySelectorAll('.card-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const cardId = parseInt(this.dataset.cardId);
+                    if (this.checked) {
+                        selectedCardIds.add(cardId);
+                    } else {
+                        selectedCardIds.delete(cardId);
+                    }
+                    updateCardSelection(cardId);
+                    updateSelectedCount();
+                });
+            });
+            
+            // Загружаем характеристики для каждой карточки
+            cards.forEach(card => {
+                loadAndRenderFeatures(card.card_id);
+            });
+        }
+        
+        function updateCardSelection(cardId) {
+            const cardElement = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (cardElement) {
+                cardElement.classList.toggle('selected', selectedCardIds.has(cardId));
+            }
+        }
+        
+        async function loadAndRenderFeatures(cardId) {
+            const features = await loadFeatures(cardId);
+            renderFeatures(cardId, features);
+        }
+        
+        function renderFeatures(cardId, features) {
+            const container = document.getElementById(`features-list-${cardId}`);
+            
+            if (features.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 10px;">Нет характеристик. Нажмите + чтобы добавить из атрибутов СТЕ.</div>';
+                return;
+            }
+            
+            container.innerHTML = features.map(feature => `
+                <div class="feature-item ${feature.is_significant ? 'significant' : 'insignificant'}" 
+                     title="${feature.is_significant ? '✓ Группировка по этой характеристике включена' : '✗ Группировка отключена - каждое значение = отдельная карточка'}">
+                    <input type="checkbox" class="feature-checkbox" 
+                        data-card-id="${cardId}" 
+                        data-feature-name="${feature.feature_name}"
+                        ${feature.is_significant ? 'checked' : ''}
+                        onchange="toggleFeatureSignificance(${cardId}, '${feature.feature_name}', this.checked)"
+                        title="${feature.is_significant ? 'Снять галочку = создать отдельные карточки для каждого значения' : 'Поставить галочку = группировать СТЕ с одинаковым значением'}">
+                    <span class="feature-name">${feature.feature_name}:</span>
+                    <span class="feature-value">${feature.feature_value || '—'}</span>
+                    <span class="feature-status-hint">
+                        ${feature.is_significant ? '🔗' : '📋'}
+                    </span>
+                    <div class="feature-actions">
+                        <button class="btn-small" onclick="openEditFeatureModal(${cardId}, '${feature.feature_name}', '${feature.feature_value || ''}')" title="Изменить значение">✏️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderUnassignedStes() {
+            const container = document.getElementById('unassignedSteContainer');
+            document.getElementById('unassignedCount').textContent = `(${unassignedStes.length})`;
+            
+            if (unassignedStes.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>Все СТЕ распределены</h3></div>';
+                return;
+            }
+            
+            container.innerHTML = unassignedStes.map(ste => `
+                <div class="ste-item" 
+                     data-ste-id="${ste.ste_id}"
+                     draggable="true">
+                    <div class="ste-item-header">
+                        <div class="ste-item-name">${ste.name}</div>
+                        <button class="btn-small" onclick="openEditSteModal(${ste.ste_id}, '${ste.name.replace(/'/g, "\\'")}', ${JSON.stringify(ste.attributes || {}).replace(/"/g, '&quot;')})">✏️</button>
+                    </div>
+                    ${ste.attributes ? `
+                        <div class="ste-item-attributes">
+                            ${Object.entries(ste.attributes).map(([key, value]) => 
+                                `<span>${key}: ${value}</span>`
+                            ).join('')}
+                        </div>
+                    ` : ''}
+                    <select class="ste-assign-select" onchange="assignSteToCard(${ste.ste_id}, this.value)">
+                        <option value="">-- Привязать к карточке --</option>
+                        ${cards.map(card => `<option value="${card.card_id}">${card.title}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+            
+            // Инициализируем Drag & Drop для нераспределённых СТЕ
+            initUnassignedDragDrop();
+        }
+        
+        async function assignSteToCard(steId, cardId) {
+            if (!cardId) return;
+            
+            try {
+                await apiRequest(`/ste/${steId}/assign`, 'POST', { card_id: parseInt(cardId) });
+                showToast('СТЕ привязана к карточке', 'success');
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        async function unassignSte(steId) {
+            try {
+                await apiRequest(`/ste/${steId}/assign`, 'POST', { card_id: null });
+                showToast('СТЕ откреплена от карточки', 'success');
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        // ==================== DRAG & DROP ====================
+        let draggedSteId = null;
+        
+        function handleDragStart(event, steId) {
+            draggedSteId = steId;
+            event.target.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', steId);
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const card = event.currentTarget;
+            card.classList.add('drag-over');
+            const steSection = card.querySelector('.ste-section-card');
+            if (steSection) steSection.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(event) {
+            const card = event.currentTarget;
+            card.classList.remove('drag-over');
+            const steSection = card.querySelector('.ste-section-card');
+            if (steSection) steSection.classList.remove('drag-over');
+        }
+        
+        async function handleDrop(event, cardId) {
+            event.preventDefault();
+            const card = event.currentTarget;
+            card.classList.remove('drag-over');
+            const steSection = card.querySelector('.ste-section-card');
+            if (steSection) steSection.classList.remove('drag-over');
+            
+            const steId = event.dataTransfer.getData('text/plain') || draggedSteId;
+            if (steId) {
+                await assignSteToCard(parseInt(steId), cardId);
+            }
+            draggedSteId = null;
+        }
+        
+        // Drag & Drop для нераспределённых СТЕ
+        function initUnassignedDragDrop() {
+            document.querySelectorAll('.ste-item').forEach(item => {
+                item.setAttribute('draggable', 'true');
+                item.addEventListener('dragstart', function(e) {
+                    const steId = this.dataset.steId;
+                    draggedSteId = steId;
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', steId);
+                });
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                });
+            });
+        }
+        
+        // ==================== РЕДАКТИРОВАНИЕ СТЕ ====================
+        function openEditSteModal(steId, name, attributes) {
+            document.getElementById('editSteId').value = steId;
+            document.getElementById('editSteName').value = name;
+            document.getElementById('editSteAttributes').value = 
+                typeof attributes === 'string' ? attributes : JSON.stringify(attributes || {}, null, 2);
+            openModal('editSteModal');
+        }
+        
+        async function saveSte(event) {
+            event.preventDefault();
+            
+            const steId = document.getElementById('editSteId').value;
+            const name = document.getElementById('editSteName').value;
+            let attributes = {};
+            
+            try {
+                const attrText = document.getElementById('editSteAttributes').value;
+                if (attrText.trim()) {
+                    attributes = JSON.parse(attrText);
+                }
+            } catch (e) {
+                showToast('Неверный формат JSON атрибутов', 'error');
+                return;
+            }
+            
+            try {
+                await apiRequest(`/ste/${steId}`, 'PUT', { name, attributes });
+                showToast('СТЕ обновлена', 'success');
+                closeModal('editSteModal');
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        // ==================== ПЕРЕРАСПРЕДЕЛЕНИЕ ====================
+        async function redistributeCards(significantFeatures = null) {
+            // Если не переданы характеристики, собираем их из текущих карточек
+            if (!significantFeatures) {
+                significantFeatures = collectSignificantFeatures();
+            }
+            
+            if (significantFeatures.length === 0) {
+                showToast('Нет значимых характеристик для группировки. Отметьте галочками характеристики, по которым нужно группировать.', 'warning');
+                return;
+            }
+            
+            const message = `Перераспределить СТЕ по карточкам?\n\nЗначимые характеристики:\n- ${significantFeatures.join('\n- ')}\n\nСТЕ с одинаковыми значениями этих характеристик будут объединены в одну карточку.`;
+            
+            if (!confirm(message)) {
+                return;
+            }
+            
+            try {
+                showLoading(true);
+                const result = await apiRequest('/cards/redistribute', 'POST', {
+                    significant_features: significantFeatures
+                });
+                
+                showToast(result.message, 'success');
+                
+                if (result.data.status === 'completed') {
+                    showToast(`Создано ${result.data.groups_count} групп, распределено ${result.data.updated_stes_count} СТЕ`, 'info');
+                    // Перезагружаем данные
+                    await loadAllData();
+                }
+            } catch (error) {
+                // Ошибка уже показана
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Собрать все значимые характеристики из текущих карточек
+        function collectSignificantFeatures() {
+            const significantSet = new Set();
+            
+            cards.forEach(card => {
+                if (card.features) {
+                    card.features.forEach(feature => {
+                        if (feature.is_significant) {
+                            significantSet.add(feature.feature_name);
+                        }
+                    });
+                }
+            });
+            
+            return Array.from(significantSet);
+        }
+        
+        // ==================== CRUD КАРТОЧЕК ====================
+        function openCreateCardModal() {
+            document.getElementById('cardModalTitle').textContent = 'Создать карточку';
+            document.getElementById('cardFormId').value = '';
+            document.getElementById('cardFormTitle').value = '';
+            document.getElementById('cardFormDescription').value = '';
+            openModal('cardModal');
+        }
+        
+        async function openEditCardModal(cardId) {
+            const card = cards.find(c => c.card_id === cardId);
+            if (!card) return;
+            
+            document.getElementById('cardModalTitle').textContent = 'Редактировать карточку';
+            document.getElementById('cardFormId').value = card.card_id;
+            document.getElementById('cardFormTitle').value = card.title;
+            document.getElementById('cardFormDescription').value = card.description || '';
+            openModal('cardModal');
+        }
+        
+        async function saveCard(event) {
+            event.preventDefault();
+            
+            const cardId = document.getElementById('cardFormId').value;
+            const title = document.getElementById('cardFormTitle').value;
+            const description = document.getElementById('cardFormDescription').value;
+            
+            try {
+                if (cardId) {
+                    // Обновление
+                    await apiRequest(`/cards/${cardId}`, 'PUT', { title, description });
+                    showToast('Карточка обновлена', 'success');
+                } else {
+                    // Создание
+                    await apiRequest('/cards', 'POST', { title, description });
+                    showToast('Карточка создана', 'success');
+                }
+                
+                closeModal('cardModal');
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана в apiRequest
+            }
+        }
+        
+        async function deleteCard(cardId) {
+            if (!confirm('Вы уверены, что хотите удалить эту карточку?')) {
+                return;
+            }
+            
+            try {
+                await apiRequest(`/cards/${cardId}`, 'DELETE');
+                showToast('Карточка удалена', 'success');
+                selectedCardIds.delete(cardId);
+                updateSelectedCount();
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        // ==================== ХАРАКТЕРИСТИКИ ====================
+        async function openAddFeatureModal(cardId) {
+            document.getElementById('addFeatureCardId').value = cardId;
+            document.getElementById('addFeatureName').value = '';
+            document.getElementById('addFeatureValue').value = '';
+            document.getElementById('addFeatureSignificant').checked = true;
+            
+            // Загружаем атрибуты СТЕ для этой карточки
+            const attrList = document.getElementById('steAttributesList');
+            attrList.innerHTML = '<div class="loading-spinner">Загрузка атрибутов...</div>';
+            
+            openModal('addFeatureModal');
+            
+            try {
+                const response = await apiRequest(`/ste/attributes?card_id=${cardId}`);
+                const attributes = response.data.attributes || [];
+                
+                if (attributes.length === 0) {
+                    attrList.innerHTML = '<div style="color:#999;text-align:center;padding:20px;">Нет атрибутов в СТЕ этой карточки</div>';
+                    return;
+                }
+                
+                attrList.innerHTML = attributes.map(attr => `
+                    <div class="ste-attribute-item" 
+                         onclick="selectSteAttribute('${attr.name}', '${attr.values[0] || ''}', this)">
+                        <span class="ste-attribute-name">${attr.name}:</span>
+                        <span class="ste-attribute-values">
+                            ${attr.values.slice(0, 5).map(v => `<span class="value-tag">${v}</span>`).join('')}
+                            ${attr.values.length > 5 ? `<span class="value-tag">+${attr.values.length - 5}</span>` : ''}
+                        </span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                attrList.innerHTML = '<div style="color:#e74c3c;text-align:center;padding:20px;">Ошибка загрузки атрибутов</div>';
+            }
+        }
+        
+        function selectSteAttribute(name, value, element) {
+            // Снимаем выделение с других
+            document.querySelectorAll('.ste-attribute-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            // Заполняем поля формы
+            document.getElementById('addFeatureName').value = name;
+            document.getElementById('addFeatureValue').value = value;
+        }
+        
+        async function addFeature(event) {
+            event.preventDefault();
+            
+            const cardId = document.getElementById('addFeatureCardId').value;
+            const featureName = document.getElementById('addFeatureName').value;
+            const featureValue = document.getElementById('addFeatureValue').value;
+            const isSignificant = document.getElementById('addFeatureSignificant').checked;
+            
+            try {
+                await apiRequest(`/cards/${cardId}/features`, 'POST', {
+                    feature_name: featureName,
+                    feature_value: featureValue,
+                    is_significant: isSignificant
+                });
+                
+                showToast('Характеристика добавлена', 'success');
+                closeModal('addFeatureModal');
+                await loadAndRenderFeatures(parseInt(cardId));
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        function openEditFeatureModal(cardId, featureName, featureValue) {
+            document.getElementById('editFeatureCardId').value = cardId;
+            document.getElementById('editFeatureName').value = featureName;
+            document.getElementById('editFeatureOldValue').value = featureValue;
+            document.getElementById('editFeatureNameDisplay').value = featureName;
+            document.getElementById('editFeatureNewValue').value = featureValue;
+            document.getElementById('editFeatureComment').value = '';
+            openModal('editFeatureModal');
+        }
+        
+        async function changeFeatureValue(event) {
+            event.preventDefault();
+            
+            const cardId = document.getElementById('editFeatureCardId').value;
+            const featureName = document.getElementById('editFeatureName').value;
+            const oldValue = document.getElementById('editFeatureOldValue').value;
+            const newValue = document.getElementById('editFeatureNewValue').value;
+            const comment = document.getElementById('editFeatureComment').value;
+            
+            try {
+                await apiRequest(`/cards/${cardId}/features/change-value`, 'PATCH', {
+                    feature_name: featureName,
+                    old_value: oldValue,
+                    new_value: newValue,
+                    comment: comment
+                });
+                
+                showToast('Значение изменено', 'success');
+                closeModal('editFeatureModal');
+                await loadAndRenderFeatures(parseInt(cardId));
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        async function toggleFeatureSignificance(cardId, featureName, isSignificant) {
+            try {
+                const endpoint = isSignificant 
+                    ? `/cards/${cardId}/features/mark-significant`
+                    : `/cards/${cardId}/features/mark-insignificant`;
+                
+                const result = await apiRequest(endpoint, 'POST', {
+                    feature_name: featureName,
+                    trigger_redistribution: true
+                });
+                
+                showToast(isSignificant ? 'Характеристика помечена как значимая' : 'Характеристика помечена как незначимая', 'success');
+                
+                // Если изменилась значимость, предлагаем перегруппировку
+                if (!isSignificant && result.data.needs_redistribution) {
+                    setTimeout(() => {
+                        if (confirm('Значимость характеристики изменена. Хотите перераспределить СТЕ по новым критериям?')) {
+                            redistributeCards();
+                        }
+                    }, 500);
+                }
+                
+                await loadAndRenderFeatures(cardId);
+            } catch (error) {
+                // Откатываем чекбокс
+                const checkbox = document.querySelector(`[data-card-id="${cardId}"][data-feature-name="${featureName}"]`);
+                if (checkbox) {
+                    checkbox.checked = !isSignificant;
+                }
+            }
+        }
+        
+        // ==================== ОБЪЕДИНЕНИЕ КАРТОЧЕК ====================
+        async function openMergeModal() {
+            if (selectedCardIds.size < 2) {
+                showToast('Выберите минимум 2 карточки', 'warning');
+                return;
+            }
+            
+            const fromCardIds = Array.from(selectedCardIds);
+            
+            try {
+                // Получаем предпросмотр
+                const response = await apiRequest(`/cards/merge-preview?from_card_ids=${fromCardIds.join(',')}&to_card_id=${fromCardIds[0]}`);
+                const preview = response.data.preview;
+                
+                // Отображаем предпросмотр
+                document.getElementById('mergePreviewContent').innerHTML = `
+                    <div class="merge-preview">
+                        <h4>Карточки для объединения:</h4>
+                        ${preview.cards_to_merge.map(card => `
+                            <div class="merge-preview-item">
+                                <span>${card.title}</span>
+                                <span>СТЕ: ${card.ste_count}</span>
+                            </div>
+                        `).join('')}
+                        <div class="merge-preview-item" style="font-weight: bold;">
+                            <span>Всего СТЕ:</span>
+                            <span>${preview.total_ste_count}</span>
+                        </div>
+                    </div>
+                    
+                    ${preview.feature_conflicts.length > 0 ? `
+                        <div style="margin-bottom: 15px;">
+                            <h4>Конфликты характеристик:</h4>
+                            ${preview.feature_conflicts.map(conflict => `
+                                <div class="conflict-item">
+                                    <strong>${conflict.feature_name}:</strong> 
+                                    ${conflict.values.join(' / ')}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                
+                // Заполняем выбор целевой карточки
+                const select = document.getElementById('mergeTargetCard');
+                select.innerHTML = fromCardIds.map(id => {
+                    const card = cards.find(c => c.card_id === id);
+                    return `<option value="${id}">${card ? card.title : `Карточка ${id}`}</option>`;
+                }).join('');
+                
+                openModal('mergeModal');
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        async function mergeCards(event) {
+            event.preventDefault();
+            
+            const fromCardIds = Array.from(selectedCardIds);
+            const createNew = document.getElementById('mergeCreateNew').checked;
+            const toCardId = parseInt(document.getElementById('mergeTargetCard').value);
+            const newTitle = document.getElementById('mergeNewTitle').value;
+            const comment = document.getElementById('mergeComment').value;
+            
+            // Убираем целевую карточку из списка исходных
+            const sourceCardIds = fromCardIds.filter(id => id !== toCardId);
+            
+            try {
+                await apiRequest('/cards/merge', 'POST', {
+                    from_card_ids: sourceCardIds,
+                    to_card_id: createNew ? null : toCardId,
+                    create_new_card: createNew,
+                    new_card_title: createNew ? newTitle : null,
+                    recalculate_features: true,
+                    comment: comment
+                });
+                
+                showToast('Карточки успешно объединены', 'success');
+                closeModal('mergeModal');
+                selectedCardIds.clear();
+                updateSelectedCount();
+                await loadAllData();
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        // ==================== ИСТОРИЯ ====================
+        async function showHistory(cardId) {
+            try {
+                const response = await apiRequest(`/cards/${cardId}/merge-history`);
+                const history = response.data.merge_history;
+                
+                document.getElementById('historyContent').innerHTML = history.length === 0 
+                    ? '<div class="empty-state">История пуста</div>'
+                    : history.map(item => `
+                        <div class="history-item">
+                            <div class="history-date">${new Date(item.created_at).toLocaleString()}</div>
+                            <div>Объединено карточек: ${item.from_card_ids.length}</div>
+                            <div>Перенесено СТЕ: ${item.affected_ste_count}</div>
+                            ${item.comment ? `<div>Комментарий: ${item.comment}</div>` : ''}
+                        </div>
+                    `).join('');
+                
+                openModal('historyModal');
+            } catch (error) {
+                // Ошибка уже показана
+            }
+        }
+        
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Загружаем все данные
+            loadAllData();
+            
+            // Обработчики кнопок в хедере
+            document.getElementById('createCardBtn').addEventListener('click', openCreateCardModal);
+            document.getElementById('refreshBtn').addEventListener('click', loadAllData);
+            document.getElementById('mergeBtn').addEventListener('click', openMergeModal);
+            document.getElementById('redistributeBtn').addEventListener('click', redistributeCards);
+            
+            // Обработчик "Выбрать все"
+            document.getElementById('selectAllCards').addEventListener('change', function() {
+                if (this.checked) {
+                    cards.forEach(card => selectedCardIds.add(card.card_id));
+                } else {
+                    selectedCardIds.clear();
+                }
+                renderCards();
+                updateSelectedCount();
+            });
+            
+            // Обработчики форм
+            document.getElementById('cardForm').addEventListener('submit', saveCard);
+            document.getElementById('addFeatureForm').addEventListener('submit', addFeature);
+            document.getElementById('editFeatureForm').addEventListener('submit', changeFeatureValue);
+            document.getElementById('mergeForm').addEventListener('submit', mergeCards);
+            document.getElementById('editSteForm').addEventListener('submit', saveSte);
+            
+            // Обработчик чекбокса "Создать новую карточку"
+            document.getElementById('mergeCreateNew').addEventListener('change', function() {
+                document.getElementById('mergeNewTitleGroup').style.display = this.checked ? 'block' : 'none';
+                document.getElementById('mergeTargetCard').disabled = this.checked;
+            });
+            
+            // Обработчики закрытия модальных окон
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const modalId = this.dataset.modal;
+                    if (modalId) {
+                        closeModal(modalId);
+                    }
+                });
+            });
+            
+            // Закрытие модалки по клику вне контента
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -9,7 +9,7 @@ http://localhost:5000/api
 
 ### Карточки (Cards)
 
-#### GET /cards
+#### GET /cards ✅ РЕАЛИЗОВАНО
 **Описание:** Получить список всех карточек  
 **Использование:** `apiRequest('/cards')`  
 **Метод:** GET  
@@ -175,7 +175,7 @@ http://localhost:5000/api
 
 ### СТЕ (Standard Trade Units)
 
-#### GET /ste?unassigned=true
+#### GET /ste?unassigned=true ✅ РЕАЛИЗОВАНО
 **Описание:** Получить список нераспределённых СТЕ  
 **Использование:** `apiRequest('/ste?unassigned=true')`  
 **Метод:** GET  

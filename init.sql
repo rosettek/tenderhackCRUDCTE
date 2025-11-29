@@ -39,12 +39,10 @@ CREATE TABLE IF NOT EXISTS card_significant_features (
     UNIQUE(card_id, feature_name)
 );
 
-CREATE INDEX IF NOT EXISTS idx_card_sig_features_card ON card_significant_features(card_id);
-CREATE INDEX IF NOT EXISTS idx_card_sig_features_name ON card_significant_features(feature_name);
 
 
 CREATE TABLE IF NOT EXISTS CHANGE_GROUP_LOG (
     ste_id INT NOT NULL REFERENCES  ste(ste_id),
     new_card_id INT NOT NULL REFERENCES cards(card_id),
     change_date TIMESTAMP
-)
+);
